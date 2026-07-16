@@ -18,7 +18,10 @@
   },
   "type": "module",
   "dependencies": {
-    "express": "5.2.1"
+    "express": "5.2.1",
+    "swagger-jsdoc": "6.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.6",
