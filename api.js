@@ -11,7 +11,7 @@ const options = {
     info: {
       title: "CRUD API",
       version: "1.0.0",
-      description: "A simple CRUD API"
+      description: "A simple CRUD API made with Express and documented with Swagger",
     },
     servers: [
       {
@@ -27,9 +27,15 @@ const specs = swaggerJSDoc(options);
 
 export const app = express();
 
-app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs));
+app.use("/docs", swaggerUI.serve, swaggerUI.setup(specs, { explorer: true }));
+app.get(specs);
 
 // middleware
 app.use(express.json());
 app.use("/todos", todoRoutes);
+
+// health status route
+app.get("/health", (req, res, next) => {
+  res.json({ status: "OK" }).status(200);
+})
 
