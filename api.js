@@ -2,6 +2,7 @@ import express from "express";
 import swaggerUI from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
 import todoRoutes from "./routes/todos.js";
+import Database from 'better-sqlite3';
 
 
 // swagger options object
@@ -23,7 +24,13 @@ const options = {
   
 };
 
+// SwaggerJSDocs config call
 const specs = swaggerJSDoc(options);
+
+// Database init
+export const db = new Database('todos.db');
+db.pragma("journal_mode = WAL")
+
 
 export const app = express();
 
@@ -37,5 +44,13 @@ app.use("/todos", todoRoutes);
 // health status route
 app.get("/health", (req, res, next) => {
   res.json({ status: "OK" }).status(200);
+})
+
+app.get("/db-health", (req, res, next) => {
+  if (db.open === true) {
+    res.json({status: "OK"}).status(200)
+  } else {
+    res.json({status: "Internal Server Error"}).status(500)
+  }
 })
 
