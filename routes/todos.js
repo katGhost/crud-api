@@ -187,12 +187,19 @@ router.patch("/:id", (req, res, next) => {
     const { id } = req.params;
     const { title, done } = req.body;
 
-    const query = db.prepare("UPDATE tasks SET title, done WHERE id = ?");
+    // point to where the update must happen in the database and apply change to be made
+    const query = db.prepare(`UPDATE tasks SET title = ?, done = ? WHERE id = ?`);
+    const update = query.run(title, done, id);
 
-    if (title) todoUpdate.title = title;
-    if (done) todoUpdate.done = done;
+    // return applied changes
+    const getTodo = db.prepare("SELECT id, title, done FROM tasks WHERE id = ?"); 
+    const updatedTodo = getTodo.get(update.changes)
+    // console.log("Updated Todo:", updateTodo);
 
-    res.status(200).json(`${todoUpdate.id} has been updated!`);
+    if (title) updatedTodo.title = title;
+    if (done) updatedTodo.done = done;
+
+    res.status(200).json(`${updatedTodo.title} has been updated!`);
   } catch (error) {
     res.status(500).json(error);
   }
