@@ -1,5 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
+import { db } from "../db.js";
 /**
  * @swagger
  * components:
@@ -12,17 +13,17 @@ import { v4 as uuidv4 } from "uuid";
  *       properties:
  *         id:
  *           type: string
- *           description: The auto-generated uuid id of the todo
+ *           description: The auto-generated id of the todo
  *         title:
  *           type: string
  *           description: The title of your todo
  *         done:
- *           type: boolean
- *           description: Whether you have done the todo
+ *           type: integer
+ *           description: Whether you have done the todo [0 = false, 1 = true]
  *       example:
- *         id: d3b93279-9992-4015-adca-cac651f5b40a
+ *         id: 1
  *         title: Cleaning out my closet
- *         done: false
+ *         done: 0
  */
 
 /**
@@ -63,7 +64,7 @@ import { v4 as uuidv4 } from "uuid";
  *         description: Some server error
  * /todos/{id}:
  *   get:
- *     summary: Get a specific todo by its uuid4 ID
+ *     summary: Get a specific todo by its ID
  *     tags: [Todos]
  *     parameters:
  *       - in: path
@@ -82,7 +83,7 @@ import { v4 as uuidv4 } from "uuid";
  *       404:
  *         description: Todo not found
  *   patch:
- *     summary: Update a specific todo by its uuid4 ID partialy
+ *     summary: Update a specific todo by its ID partialy
  *     tags: [Todos]
  *     parameters:
  *       - in: path
@@ -131,59 +132,50 @@ import { v4 as uuidv4 } from "uuid";
 // create a user router
 const router = express.Router();  // create a fresh router instance
 
-// mock todos database
-const todos = [
-  {
-    id: uuidv4(),
-    title: "Clean the house",
-    done: false,
-  },
-  {
-    id: uuidv4(),
-    title: "Read a book",
-    done: false,
-  },
-  {
-    id: uuidv4(),
-    title: "Work out",
-    done: false,
-  }
-];
 
-// GET: getting a list of todos from the mock db
+// GET: getting a list of todos from the real db
 router.get("/", (req, res, next) => {
+  // retunr all the todos in the tasks table in todo.db
+  const todos = db.prepare('SELECT * FROM tasks').all();
   res.json(todos);
 })
 
 // POST: creating todos
 router.post("/", (req, res, next) => {
   try { 
-    const todo = req.body;
+    const { title, done } = req.body;
     // validate request body -> if title is missing or empty
-    if (!todo || typeof todo.title !== 'string' || todo.title.trim().length === 0) {
+    if (!title || typeof title !== 'string' || title.trim().length === 0 || typeof done !== 'number') {
       return res.status(400).json({ error: 'Please enter a todo to create' });
     }
 
-    const newTodo = {
-      id: uuidv4(),
-      title: todo.title.trim(),
-      done: typeof todo.done === 'boolean' ? todo.done : false,
-    };
+    const query = db.prepare("INSERT INTO tasks (title, done) VALUES(?, ?)");
+    const newTodo = query.run(title, done);
+    
+    // select that todo
+    const getTodo = db.prepare("SELECT id, title, done FROM tasks WHERE id = ?");
+    const todo = getTodo.get(newTodo.lastInsertRowid);
+    console.log(todo);
 
-    todos.push(newTodo);
-    res.status(201).json({ message: `${newTodo.title} has been created!`, todo: newTodo });
+    res.status(201).json({ message: `${todo.title} has been created!`});
   } catch (error) {
     res.status(500).json(error)
   }
+    /* {
+        title: todo.title.trim(),
+        done: typeof todo.done === 'int' ? todo.done : 0,
+      };
+    */
 })
 
 // GET: get specific todo
 router.get("/:id", (req, res, next) => {
     const { id } = req.params;
 
-    const todoFound = todos.find((todo) => todo.id === id);
-    if (todoFound) {
-      res.status(200).json(todoFound);
+    const query = db.prepare("SELECT * FROM tasks WHERE id = ?");
+    const getTodo = query.get(id);
+    if (getTodo) {
+      res.status(200).json(getTodo);
     } else {
       res.status(404).json({error: `Todo ${id} not found!`});
     }
@@ -195,7 +187,7 @@ router.patch("/:id", (req, res, next) => {
     const { id } = req.params;
     const { title, done } = req.body;
 
-    const todoUpdate = todos.find((todo) => todo.id === id);
+    const query = db.prepare("UPDATE tasks SET title, done WHERE id = ?");
 
     if (title) todoUpdate.title = title;
     if (done) todoUpdate.done = done;
@@ -209,12 +201,12 @@ router.patch("/:id", (req, res, next) => {
 // DELETE: remove a specific todo
 router.delete("/:id", (req, res, next) => {
   const { id } = req.params;
-  const index = todos.findIndex((todo) => todo.id === id);
+  const index = db.prepare("DELETE FROM tasks WHERE id = ?");
+  const deleted = index.run(id)
   // if todo not found, retunr 404 error
-  if (index === -1) return res.status(404).json({ message: 'Todo not found' });   // <- copilot assisted
+  if (index === -1) return res.status(404).json({ message: 'Todo not found' });
 
   // delete that specific todo
-  todos.splice(index, 1);
   return res.status(200).json({ message: `${id} has been deleted!` });
 })
 
