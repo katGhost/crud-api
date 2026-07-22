@@ -2,8 +2,7 @@ import express from "express";
 import swaggerUI from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
 import todoRoutes from "./routes/todos.js";
-import Database from 'better-sqlite3';
-
+import { db } from "./db.js";
 
 // swagger options object
 const options = {
@@ -27,11 +26,9 @@ const options = {
 // SwaggerJSDocs config call
 const specs = swaggerJSDoc(options);
 
-// Database init
-export const db = new Database('todos.db');
-db.pragma("journal_mode = WAL")
 
 
+// create and export express application
 export const app = express();
 
 app.use("/docs", swaggerUI.serve, swaggerUI.setup(specs, { explorer: true }));
