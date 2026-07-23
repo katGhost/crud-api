@@ -136,8 +136,28 @@ const router = express.Router();  // create a fresh router instance
 // GET: getting a list of todos from the real db
 router.get("/", (req, res, next) => {
   // retunr all the todos in the tasks table in todo.db
-  const todos = db.prepare('SELECT * FROM tasks').all();
-  res.json(todos);
+  const { search, done } = req.query;
+  const conditions = [];
+  const params = [];
+
+  // search and append conditions dynamically
+  if (search) {
+    conditions.push("title LIKE ?");
+    params.push(`%${search}%`);
+  }
+
+  if (done) {
+    conditions.push("done = ?");
+    params.push(done === "true" ? 1 : 0);
+  }
+
+  let baseQuery = "SELECT * FROM tasks";
+  if (conditions.length > 0) {
+    baseQuery += " WHERE " + conditions.join(" AND ");
+  }
+
+  const todos = db.prepare(baseQuery).all(...params);
+  res.status(200).json(todos);
 })
 
 // POST: creating todos
@@ -188,11 +208,11 @@ router.patch("/:id", (req, res, next) => {
     const { title, done } = req.body;
 
     // point to where the update must happen in the database and apply change to be made
-    const query = db.prepare(`UPDATE tasks SET title = ?, done = ? WHERE id = ?`);
+    const query = db.prepare(`UPDATE tasks SET title = ?, done = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`);
     const update = query.run(title, done, id);
 
     // return applied changes
-    const getTodo = db.prepare("SELECT id, title, done FROM tasks WHERE id = ?"); 
+    const getTodo = db.prepare("SELECT * FROM tasks WHERE id = ?"); 
     const updatedTodo = getTodo.get(update.changes)
     // console.log("Updated Todo:", updateTodo);
 
