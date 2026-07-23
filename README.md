@@ -50,6 +50,24 @@ Generated via `swagger-jsdoc` from inline JSDoc comments in `routes/todos.js`. F
 
 ![Swagger UI screenshot](./screenshot.png)
 
+## Why SQLite (better-sqlite3)
+
+For a small CRUD app like this, a lightweight embedded database is a better fit than setting up Postgres or MongoDB — no server process, no connection config, just a file. I'm saving heavier tooling for projects that actually need it.
+
+Choosing `better-sqlite3` over `sqlite3` because SQLite itself operates synchronously under the hood regardless of driver — `sqlite3` wraps every call in callbacks/promises anyway, adding async scheduling overhead for operations that were never actually non-blocking. `better-sqlite3` calls directly into SQLite with no wrapper layer, which makes it noticeably faster for single-row reads/writes. It also supports first-class transactions and custom SQL functions out of the box.
+
+Database file `todos.db` is found in the root folder.
+
+## DB Browser Screenshot
+
+![Database Viewer Screenhot](./db-viewer.png)
+
+## Example Query
+
+```sql
+SELECT * FROM tasks WHERE done = 0
+```
+
 ## Getting Started
 
 ```bash
