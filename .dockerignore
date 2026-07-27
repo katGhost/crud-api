@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.env
+Dockerfile
+.git
+.gitignore
+README.md
+screenshot.png
+db-viewer.png
+.db
+.db-shm
+.db-wal
+.sqbpro
+*.log
+todos.db*
