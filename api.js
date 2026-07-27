@@ -2,7 +2,6 @@ import express from "express";
 import swaggerUI from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
 import todoRoutes from "./routes/todos.js";
-import { db } from "./db.js";
 
 // swagger options object
 const options = {
@@ -26,8 +25,6 @@ const options = {
 // SwaggerJSDocs config call
 const specs = swaggerJSDoc(options);
 
-
-
 // create and export express application
 export const app = express();
 
@@ -42,12 +39,3 @@ app.use("/todos", todoRoutes);
 app.get("/health", (req, res, next) => {
   res.json({ status: "OK" }).status(200);
 })
-
-app.get("/db-health", (req, res, next) => {
-  if (db.open === true) {
-    res.json({status: "OK"}).status(200)
-  } else {
-    res.json({status: "Internal Server Error"}).status(500)
-  }
-})
-
