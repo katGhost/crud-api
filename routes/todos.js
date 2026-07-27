@@ -1,6 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../db.js";
+import * as todoRepository from "../repositories/todoRepository.js";
 /**
  * @swagger
  * components:
@@ -18,12 +18,12 @@ import { db } from "../db.js";
  *           type: string
  *           description: The title of your todo
  *         done:
- *           type: integer
- *           description: Whether you have done the todo [0 = false, 1 = true]
+ *           type: boolean
+ *           description: Whether you have done the todo [false || true]
  *       example:
  *         id: 1
  *         title: Cleaning out my closet
- *         done: 0
+ *         done: false
  */
 
 /**
@@ -54,7 +54,7 @@ import { db } from "../db.js";
  *           schema:
  *             $ref: '#/components/schemas/Todo'
  *     responses:
- *       200:
+ *       201:
  *         description: Todo created.
  *         content:
  *           application/json:
@@ -134,52 +134,36 @@ const router = express.Router();  // create a fresh router instance
 
 
 // GET: getting a list of todos from the real db
-router.get("/", (req, res, next) => {
+router.get("/", async (req, res, next) => {
   // retunr all the todos in the tasks table in todo.db
-  const { search, done } = req.query;
-  const conditions = [];
-  const params = [];
-
-  // search and append conditions dynamically
-  if (search) {
-    conditions.push("title LIKE ?");
-    params.push(`%${search}%`);
+  try {
+    const todos = await todoRepository.getAllTodos(req.query);
+    res.json(todos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({error: "Internal server error"});
   }
-
-  if (done) {
-    conditions.push("done = ?");
-    params.push(done === "true" ? 1 : 0);
-  }
-
-  let baseQuery = "SELECT * FROM tasks";
-  if (conditions.length > 0) {
-    baseQuery += " WHERE " + conditions.join(" AND ");
-  }
-
-  const todos = db.prepare(baseQuery).all(...params);
-  res.status(200).json(todos);
 })
 
 // POST: creating todos
-router.post("/", (req, res, next) => {
+router.post("/", async (req, res, next) => {
   try { 
     const { title, done } = req.body;
     // validate request body -> if title is missing or empty
-    if (!title || typeof title !== 'string' || title.trim().length === 0 || typeof done !== 'number') {
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return res.status(400).json({ error: 'Please enter a todo to create' });
     }
 
-    const query = db.prepare("INSERT INTO tasks (title, done) VALUES(?, ?)");
-    const newTodo = query.run(title, done);
+    const created = await todoRepository.createTodo({title, done});
     
     // select that todo
-    const getTodo = db.prepare("SELECT id, title, done FROM tasks WHERE id = ?");
-    const todo = getTodo.get(newTodo.lastInsertRowid);
-    console.log(todo);
+    if (!created) {
+      return res.status(404).json({error: 'Not found'})
+    }
 
-    res.status(201).json({ message: `${todo.title} has been created!`});
+    res.status(201).json({ message: `${created.title} has been created!`});
   } catch (error) {
-    res.status(500).json(error)
+    res.status(500).json({error: error.message})
   }
     /* {
         title: todo.title.trim(),
@@ -189,52 +173,46 @@ router.post("/", (req, res, next) => {
 })
 
 // GET: get specific todo
-router.get("/:id", (req, res, next) => {
-    const { id } = req.params;
+router.get("/:id", async (req, res, next) => {
+  const { id } = req.params;
 
-    const query = db.prepare("SELECT * FROM tasks WHERE id = ?");
-    const getTodo = query.get(id);
-    if (getTodo) {
-      res.status(200).json(getTodo);
-    } else {
-      res.status(404).json({error: `Todo ${id} not found!`});
-    }
+  try {
+    const getTodo = await todoRepository.getTodoById(id);
+    if (!getTodo) return res.status(404).json(`Could not find todo ${id}`);
+    res.status(200).json(getTodo);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({error: "Internal server error"});
+  }
 })
 
 // PATCH: update a todo
-router.patch("/:id", (req, res, next) => {
+router.patch("/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, done } = req.body;
 
-    // point to where the update must happen in the database and apply change to be made
-    const query = db.prepare(`UPDATE tasks SET title = ?, done = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`);
-    const update = query.run(title, done, id);
+    const updatedTodo = await todoRepository.updateTodo(id, {title, done});
 
-    // return applied changes
-    const getTodo = db.prepare("SELECT * FROM tasks WHERE id = ?"); 
-    const updatedTodo = getTodo.get(update.changes)
-    // console.log("Updated Todo:", updateTodo);
-
-    if (title) updatedTodo.title = title;
-    if (done) updatedTodo.done = done;
-
+    if (!updatedTodo) res.status(404).json({error: "Todo not found"});
     res.status(200).json(`${updatedTodo.title} has been updated!`);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({error: error.message});
   }
 })
 
 // DELETE: remove a specific todo
-router.delete("/:id", (req, res, next) => {
-  const { id } = req.params;
-  const index = db.prepare("DELETE FROM tasks WHERE id = ?");
-  const deleted = index.run(id)
-  // if todo not found, retunr 404 error
-  if (index === -1) return res.status(404).json({ message: 'Todo not found' });
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deleted = await todoRepository.deleteTodo(id);
 
-  // delete that specific todo
-  return res.status(200).json({ message: `${id} has been deleted!` });
+    if (!deleted) return res.status(404).json({error: "Todo not found"});
+    res.status(200).json({message: `${deleted.title} has been deleted`});
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({error: error.message})
+  }
 })
 
 export default router;
@@ -250,5 +228,21 @@ export default router;
     done: false,
     created_at: new Date(),
   },
+
+  // search and append conditions dynamically
+  // if (search) {
+  //   conditions.push("title LIKE ?");
+  //   params.push(`%${search}%`);
+  // }
+
+  // if (done) {
+  //   conditions.push("done = ?");
+  //   params.push(done === "true" ? 1 : 0);
+  // }
+
+  // let baseQuery = "SELECT * FROM tasks";
+  // if (conditions.length > 0) {
+  //   baseQuery += " WHERE " + conditions.join(" AND ");
+  // }
 */
 
