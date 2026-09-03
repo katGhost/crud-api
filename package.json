@@ -18,8 +18,9 @@
   },
   "type": "module",
   "dependencies": {
-    "better-sqlite3": "^12.11.1",
     "express": "5.2.1",
+    "ollama": "^0.6.3",
+    "openai": "^7.8.0",
     "pg": "^8.22.0",
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-express": "^5.0.1",
