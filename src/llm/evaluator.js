@@ -42,7 +42,7 @@ export const evaluateAndScore = (userRequest, candidate) => {
   const pass = candidate.confidence >= PASS_THRESHOLD;
   return {
     pass,
-    score: candidate.confidence,
+    score: parseFloat(candidate.confidence.toFixed(2)),
     reason: pass 
       ? 'Passed threshold' 
       : `Confidence ${candidate.confidence} below threshold ${PASS_THRESHOLD}`
@@ -97,7 +97,7 @@ export const parseWithRetry = async (text) => {
   return {
     success: false,
     attempts: attempt,
-    finalScore: parsed?.confidence ?? 0,
+    finalScore: parseFloat(parsed?.confidence.toFixed(2)) ?? 0,
     reason: lastReason
   };
 };

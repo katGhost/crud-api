@@ -166,6 +166,7 @@ export const callLLM = async (userText, { repairHint } = {}) => {
       model: MODEL,
       messages,
       tools,
+      temperature: 0.2,
       stream: false,
       signal: controller.signal,
     });
@@ -202,6 +203,7 @@ export const callLLM = async (userText, { repairHint } = {}) => {
         model: MODEL,
         messages,
         tools,
+        temperature: 0.2,
         stream: false,
         signal: controller.signal,
       });
@@ -219,6 +221,7 @@ export const callLLM = async (userText, { repairHint } = {}) => {
     const finalResponse = await client.chat.completions.create({
       model: MODEL,
       messages,
+      temperature: 0.2,
       format: 'json',  // re-enable format constraint here only
       stream: false,
       signal: controller.signal,
