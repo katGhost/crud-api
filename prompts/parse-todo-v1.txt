@@ -18,8 +18,8 @@ Every candidate you produce must conform to this shape:
 
 1. Parse the user input into a candidate output.
 2. Call `evaluateAndScore` with the original user request and your candidate.
-3. If the score is >= 0.8 — stop. Return the candidate as your final answer in specified format, preferrably JSON.
-4. If the score is < 0.8 — call `rewriter` with the candidate and the issues the evaluator returned.
+3. If the score is >= 0.75 — stop. Return the candidate as your final answer in specified format, preferrably JSON.
+4. If the score is < 0.75 — call `rewriter` with the candidate and the issues the evaluator returned.
 5. Use the `rewriter` to rewrite the candidate.
 6. Repeat from step 2 with the rewritten candidate.
 

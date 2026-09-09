@@ -1,6 +1,6 @@
 {
   "name": "crud-api",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "main": "server.js",
   "scripts": {
@@ -18,19 +18,19 @@
   },
   "type": "module",
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "5.2.1",
     "ollama": "^0.6.3",
     "openai": "^7.8.0",
     "pg": "^8.22.0",
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.6",
     "nodemon": "^3.1.14"
   },
-  "allowBuilds": [
-    "better-sqlite3"
-  ]
+  "packageManager": "pnpm@11.25.0+sha512.5cde925b4f075f725eb71fbae18a42ffe784524789f19b61c731cb8721ec28aaee160e01a8d5af4fedb2a42cdbf300efe23db356b0d4a17b4d63e11f8ab7c956"
 }

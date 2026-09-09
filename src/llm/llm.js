@@ -2,39 +2,44 @@ import fs from "node:fs";
 import path from "node:path";
 import { evaluateAndScore, rewriter } from "./evaluator.js";
 import OpenAI from "openai";
+import dotenv from "dotenv";
+
+
+// load dotenv
+dotenv.config({ debug: true })
+
 
 // Ollama configs -> load
-const LLM_URL = process.env.LLM_URL || 'http://localhost:11434/v1';
-const MODEL = process.env.LLM_MODEL || 'llama3.2:latest';
-const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 120_000);
-const STUB_MODE = process.env.LLM_STUB === 'true';
+const LLM_URL = process.env.LLM_URL || "http://localhost:11434/v1";
+const MODEL = process.env.LLM_MODEL || "llama3.2:latest";
+const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT || 120_000);
+const STUB_MODE = process.env.LLM_STUB === "true";
 let attempts = 0;
 const MAX_TOOL_ROUNDS = 6; // evaluator + rewriter × 3
 
 const client = new OpenAI({
-  apiKey: 'ollama',
+  apiKey: "ollama",
   baseURL: LLM_URL,
   timeout: TIMEOUT_MS,
 });
 
-
 // Check model existence -> loads
 if (!MODEL) {
-  throw new Error('LLM_MODEL is not configured');
+  throw new Error("LLM_MODEL is not configured");
 }
 
 // Validate timout
 if (!Number.isFinite(TIMEOUT_MS) || TIMEOUT_MS <= 0) {
-  throw new Error('OLLAMA_TIMEOUT_MS must be a positive number');
+  throw new Error("OLLAMA_TIMEOUT_MS must be a positive number");
 }
 
 // Load versioned prompt from file
-const PROMPTS_DIR = './prompts'
+const PROMPTS_DIR = "./prompts";
 
 const loadPrompt = () => {
-  const promptPath = path.join(PROMPTS_DIR, '/parse-todo-v1.txt');
-  return fs.readFileSync(promptPath, 'utf-8');
-}
+  const promptPath = path.join(PROMPTS_DIR, "/parse-todo-v1.txt");
+  return fs.readFileSync(promptPath, "utf-8");
+};
 
 // STUB respose -> used when the STUB_MODE is true
 // Lets us build and test the pipeline without Ollama running
@@ -42,15 +47,14 @@ const stubResponse = (text) => ({
   title: `[STUB] ${text.slice(0, 60)}`,
   done: false,
   confidence: 0.99,
-  warnings: ['✔ Stub mode active -> Not a real LLM response']
-})
-
+  warnings: ["✔ Stub mode active -> Not a real LLM response"],
+});
 
 const tools = [
   {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'evaluateAndScore',
+      name: "evaluateAndScore",
       description: `
         Evaluate a candidate output against the original user request.
 
@@ -66,25 +70,25 @@ const tools = [
       `.trim(),
 
       parameters: {
-        type: 'object',
-        required: ['userRequest', 'candidate'],
+        type: "object",
+        required: ["userRequest", "candidate"],
         properties: {
           userRequest: {
-            type: 'string',
-            description: 'The original user\'s request.',
+            type: "string",
+            description: "The original user's request.",
           },
           candidate: {
-            type: 'object',
-            description: 'The candidate output being evaluated.',
+            type: "object",
+            description: "The candidate output being evaluated.",
           },
         },
       },
     },
   },
   {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'rewriter',
+      name: "rewriter",
       description: `
         Rewrite the candidate output to correct the issues identified by
         evaluateAndScore.
@@ -100,39 +104,39 @@ const tools = [
       `.trim(),
 
       parameters: {
-        type: 'object',
-        required: ['candidate', 'issues'],
+        type: "object",
+        required: ["candidate", "issues"],
         properties: {
           candidate: {
-            type: 'object',
-            description: 'The candidate output that failed evaluation.'
+            type: "object",
+            description: "The candidate output that failed evaluation.",
           },
           issues: {
-            type: 'array',
-            description: 'Specific issues identified by the evaluator.',
+            type: "array",
+            description: "Specific issues identified by the evaluator.",
             items: {
-              type: 'object',
-              required: ['problem'],
+              type: "object",
+              required: ["problem"],
               properties: {
                 field: {
-                  type: 'string',
-                  description: 'The affected field.'
+                  type: "string",
+                  description: "The affected field.",
                 },
                 problem: {
-                  type: 'string',
-                  description: 'What is wrong with the candidate.'
+                  type: "string",
+                  description: "What is wrong with the candidate.",
                 },
                 severity: {
-                  type: 'string',
-                  enum: ['low', 'medium', 'high']
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                  type: "string",
+                  enum: ["low", "medium", "high"],
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 ];
 
 // Calling Ollama with a hard timeout
@@ -143,13 +147,13 @@ export const callLLM = async (userText, { repairHint } = {}) => {
   const systemPrompt = loadPrompt();
 
   const messages = [
-    { role: 'system', content: systemPrompt },
+    { role: "system", content: systemPrompt },
     {
-      role: 'user',
+      role: "user",
       content: repairHint
-      ? `Previous attempt failed validation:\n${repairHint}\n\nTry again with this input: ${userText}`
-      : `Parse this task: ${userText}`
-    }
+        ? `Previous attempt failed validation:\n${repairHint}\n\nTry again with this input: ${userText}`
+        : `Parse this task: ${userText}`,
+    },
   ];
 
   // Hard timeout - 'Ollama timeout is 10 minutes whcih is not a real timeout'
@@ -159,9 +163,11 @@ export const callLLM = async (userText, { repairHint } = {}) => {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   let raw;
+  let llmLogs = [];
+  let attempts = 0;
+  const startedAt = Date.now();
 
   try {
-
     let current = await client.chat.completions.create({
       model: MODEL,
       messages,
@@ -171,6 +177,7 @@ export const callLLM = async (userText, { repairHint } = {}) => {
       signal: controller.signal,
     });
 
+
     let assistantMessage = current.choices[0].message;
     messages.push(assistantMessage);
 
@@ -178,20 +185,18 @@ export const callLLM = async (userText, { repairHint } = {}) => {
       attempts++;
       for (const call of assistantMessage.tool_calls) {
         let result;
-        const args = JSON.parse(call.function.arguments || '{}');
+        const args = JSON.parse(call.function.arguments || "{}");
 
-        if (call.function.name === 'evaluateAndScore') {
+        if (call.function.name === "evaluateAndScore") {
           result = evaluateAndScore(args.userRequest, args.candidate);
-
-        } else if (call.function.name === 'rewriter') {
+        } else if (call.function.name === "rewriter") {
           result = rewriter(args.candidate, args.issues);
-
         } else {
-          result = 'Unknown tool';
+          result = "Unknown tool";
         }
 
         messages.push({
-          role: 'tool',
+          role: "tool",
           tool_call_id: call.id,
           content: JSON.stringify(result),
         });
@@ -214,40 +219,58 @@ export const callLLM = async (userText, { repairHint } = {}) => {
 
     // After while loop — force final JSON response
     messages.push({
-      role: 'user',
-      content: 'Return only the final candidate as a valid JSON object. No explanation. No text. JSON only.'
+      role: "user",
+      content:
+        "Return only the final candidate as a valid JSON object. No explanation. No text. JSON only.",
     });
 
     const finalResponse = await client.chat.completions.create({
       model: MODEL,
       messages,
       temperature: 0.2,
-      format: 'json',  // re-enable format constraint here only
+      format: "json", // re-enable format constraint here only
       stream: false,
       signal: controller.signal,
     });
 
+    // Create a logger for LLM costs/usage
+    const recordUsage = (response, phase) => {
+      const usage = response?.usage;
+      const firstLine = loadPrompt().split('\n')[0];
+      const version = firstLine.split('-')[1].trim();
+      if (!usage) return;
+
+      llmLogs.push({
+        phase,
+        promptVersion: version,
+        model: MODEL,
+        inputTokens: Number(usage.prompt_tokens ?? 0),
+        outputTokens: Number(usage.completion_tokens ?? 0),
+        duration: Date.now() - startedAt,
+      });
+    };
+
     raw = finalResponse.choices[0].message.content;
 
-
     if (!raw) {
-      throw new Error('Ollama returned an empty response');
+      throw new Error("Ollama returned an empty response");
     }
 
-    console.log('Raw:', raw);
+    console.log("Raw:", raw);
 
     try {
+      // Log LLM usage
+      recordUsage(current, "initial");
+      console.log("LLM logs: ", llmLogs);
+
+      // return final response parsed.
       return JSON.parse(raw);
     } catch {
-      throw new Error(
-        `Model returned invalid JSON: ${raw.slice(0, 100)}`
-      );
+      throw new Error(`Model returned invalid JSON: ${raw.slice(0, 100)}`);
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error(
-        `LLM call timed out after ${TIMEOUT_MS}ms`
-      );
+    if (err.name === "AbortError") {
+      throw new Error(`LLM call timed out after ${TIMEOUT_MS}ms`);
     }
 
     throw err;
