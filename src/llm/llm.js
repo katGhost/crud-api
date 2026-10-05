@@ -12,16 +12,10 @@ dotenv.config({ debug: true })
 // Ollama configs -> load
 const LLM_URL = process.env.LLM_URL || "http://localhost:11434/v1";
 const MODEL = process.env.LLM_MODEL || "llama3.2:latest";
-const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT || 120_000);
+const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT) || 7_200_000;
 const STUB_MODE = process.env.LLM_STUB === "true";
 let attempts = 0;
 const MAX_TOOL_ROUNDS = 6; // evaluator + rewriter × 3
-
-const client = new OpenAI({
-  apiKey: "ollama",
-  baseURL: LLM_URL,
-  timeout: TIMEOUT_MS,
-});
 
 // Check model existence -> loads
 if (!MODEL) {
@@ -32,6 +26,13 @@ if (!MODEL) {
 if (!Number.isFinite(TIMEOUT_MS) || TIMEOUT_MS <= 0) {
   throw new Error("OLLAMA_TIMEOUT_MS must be a positive number");
 }
+
+const client = new OpenAI({
+  apiKey: "ollama",
+  baseURL: LLM_URL,
+  timeout: TIMEOUT_MS,
+});
+
 
 // Load versioned prompt from file
 const PROMPTS_DIR = "./prompts";

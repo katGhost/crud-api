@@ -3,8 +3,8 @@ import { schema } from "./schema.js";
 import OpenAI from "openai";
 
 
-const MAX_ATTEMPTS = 3;
-const PASS_THRESHOLD = 0.75;
+const MAX_ATTEMPTS = 2;
+const PASS_THRESHOLD = 0.7;
 
 // Schema validator -> checks shape before trusting content
 

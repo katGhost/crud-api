@@ -1,0 +1,8 @@
+{"input": "remind sarah push feature", "expected": {"done": false, "confidence": 0.8}}
+{"input": "email john fix the bug deploy to prod", "expected": {"done": false, "confidence": 0.7}}
+{"input": "already sent the report to sarah yesterday", "expected": {"done": false, "confidence": 0.9}}
+{"input": "the thing we talked about", "expected": {"done": false, "confidence": 0.7}}
+{"input": "finish the report but also its done nevermind", "expected": {"done": false, "confidence": 0.8}}
+{"input": "finish the thing for alan by eod", "expected": {"done": false, "confidence": 0.9}}
+{"input": "remember sort reports", "expected": {"done": false, "confidence": 0.7}}
+{"input": "stuff", "expected": {"done": false, "confidence": 0.0}}
